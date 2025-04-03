@@ -1,0 +1,12 @@
+{
+  "domain": "syr",
+  "name": "SYR Valve",
+  "version": "1.0.0",
+  "documentation": "https://example.com",
+  "requirements": [],
+  "dependencies": [],
+  "codeowners": ["@SYR-Thompson"],
+  "iot_class": "local_polling",
+  "config_flow": true,
+  "logo": "custom_components/syr/icons/icon.png"
+}

@@ -1,0 +1,9 @@
+{
+  "name": "SYR Leckageschutz",
+  "render_readme": true,
+  "domains": ["syr"],
+  "country": "DE",
+  "homeassistant": "2023.0.0",
+  "iot_class": "local_polling",
+  "filename": "custom_components/syr/manifest.json"
+}
