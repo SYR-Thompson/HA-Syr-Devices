@@ -1,9 +1,9 @@
 from homeassistant.components.number import NumberEntity
-from homeassistant.helpers.update_coordinator import CoordinatorEntity, DataUpdateCoordinator, UpdateFailed
-from datetime import timedelta
+from homeassistant.helpers.update_coordinator import CoordinatorEntity
 import aiohttp
 import logging
 from .const import DOMAIN, CONF_IP, CONF_NAME
+from .coordinator import SlowSYRCoordinator
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -15,33 +15,6 @@ CONFIGURABLE_KEYS = {
     "PT2": {"name": "Parameter Zeit 2", "unit": "s", "min": 0, "max": 3600, "step": 1, "device_class": None},
     "PT3": {"name": "Parameter Zeit 3", "unit": "s", "min": 0, "max": 3600, "step": 1, "device_class": None},
 }
-
-class SlowSYRCoordinator(DataUpdateCoordinator):
-    def __init__(self, hass, ip, name):
-        super().__init__(
-            hass,
-            logger=_LOGGER,
-            name=f"SYR-Slow {ip}",
-            update_interval=timedelta(seconds=60)
-        )
-        self.ip = ip
-        self.name = name
-
-    async def _async_update_data(self):
-        data = {}
-        keys = list(CONFIGURABLE_KEYS.keys())
-        async with aiohttp.ClientSession() as session:
-            for key in keys:
-                url = f"http://{self.ip}:5333/trio/get/{key.lower()}"
-                try:
-                    async with session.get(url, timeout=5) as resp:
-                        raw = await resp.json()
-                        response_key = f"get{key.upper()}"
-                        if response_key in raw:
-                            data[key] = raw[response_key]
-                except Exception as e:
-                    _LOGGER.warning("Failed to update %s: %s", key, e)
-        return data
 
 async def async_setup_entry(hass, entry, async_add_entities):
     ip = entry.data[CONF_IP]
@@ -84,7 +57,8 @@ class SYRConfigNumber(CoordinatorEntity, NumberEntity):
                 async with session.get(url, timeout=5) as resp:
                     if resp.status == 200:
                         await self.coordinator.async_request_refresh()
-        except Exception:
+        except Exception as e:
+            _LOGGER.warning("❌ Fehler beim Setzen von %s: %s", self._key, e)
             self._attr_available = False
 
     @property
