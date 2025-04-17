@@ -1,9 +1,8 @@
 from homeassistant.components.switch import SwitchEntity
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from .const import DOMAIN
-import aiohttp
+from .coordinator import request_manager
 import logging
-import asyncio
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -17,55 +16,41 @@ class SYRValveSwitch(CoordinatorEntity, SwitchEntity):
         self._attr_should_poll = False
         self._attr_name = f"{coordinator.name} Absperrung"
         self._attr_unique_id = f"{coordinator.ip}_valve"
-        self._last_vlv = None
         self._busy = False
 
     @property
     def is_on(self):
-        """Return True if the valve is closed (Absperrung aktiv)."""
         return self.coordinator.data.get("VLV") == 20
 
     @property
     def icon(self):
-        if self.is_on:
-            return "mdi:valve-closed"
-        else:
-            return "mdi:valve-open"
+        return "mdi:valve-open" if self.is_on else "mdi:valve-closed"
 
     @property
     def available(self):
         return self.coordinator.last_update_success and not self._busy
 
     async def async_turn_on(self, **kwargs):
-        """Schalte Ventil zu (Absperrung aktivieren)."""
         await self._send_valve_command(True)
 
     async def async_turn_off(self, **kwargs):
-        """Schalte Ventil auf (Absperrung deaktivieren)."""
         await self._send_valve_command(False)
 
     async def _send_valve_command(self, close: bool):
-        """Sende Steuerbefehl und warte auf Zustand über Koordinator."""
         self._busy = True
-        self.async_write_ha_state()  # UI-Update: Sperre
+        self.async_write_ha_state()
 
-        expected = 20 if close else 10
         url = f"http://{self.coordinator.ip}:5333/trio/set/ab/{str(not close).lower()}"
-        _LOGGER.info("➡️ Schalte Ventil (%s): %s", "zu" if close else "auf", url)
+        _LOGGER.info("➡️ Befehl senden: %s", url)
 
         try:
-            async with aiohttp.ClientSession() as session:
-                async with session.get(url, timeout=5) as resp:
-                    if resp.status == 200:
-                        _LOGGER.debug("Befehl gesendet, warte auf Statusaktualisierung...")
-                        self._last_vlv = self.coordinator.data.get("VLV")
-                        await asyncio.sleep(3)
-                        await self.coordinator.async_request_refresh()
+            await request_manager.set(url)
+            _LOGGER.info("✅ Ventilbefehl erfolgreich übermittelt")
         except Exception as e:
-            _LOGGER.error("❌ Fehler beim Schaltvorgang: %s", e)
+            _LOGGER.error("❌ Fehler beim Senden des Ventilbefehls: %s", e)
 
         self._busy = False
-        self.async_write_ha_state()  # UI-Update: Entsperre
+        self.async_write_ha_state()
 
     @property
     def device_info(self):
