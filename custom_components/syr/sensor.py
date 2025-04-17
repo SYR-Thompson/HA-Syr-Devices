@@ -5,6 +5,27 @@ from homeassistant.helpers.entity import EntityCategory
 from .const import DOMAIN
 from .coordinator import SYRCoordinator, SlowSYRCoordinator
 
+VLV_STATE_MAP = {
+    10: "Absperrung geschlossen",
+    11: "Absperrung schließt",
+    20: "Absperrung offen",
+    21: "Absperrung öffnet"
+}
+
+ALA_STATE_MAP = {
+    "ff": "Kein Alarm",
+    "a1": "Fehler Endschalter",
+    "a2": "Motorstrom überschritten",
+    "a3": "Volumenleckage",
+    "a4": "Zeitleckage",
+    "a5": "Durchflussleckage",
+    "a6": "Mikroleckage",
+    "a7": "Bodensensorleckage",
+    "a8": "Störung Turbine"
+    
+}
+
+
 SENSOR_DEFINITIONS = {
     "VLV": {"name": "Ventilstatus", "unit": None, "device_class": None},
     "FLO": {"name": "Durchfluss", "unit": "L/h", "device_class": "water"},
@@ -56,7 +77,15 @@ class SYRSensor(CoordinatorEntity, SensorEntity):
 
     @property
     def native_value(self):
-        return self.coordinator.data.get(self._key)
+        value = self.coordinator.data.get(self._key)
+
+        if self._key == "VLV":
+            return VLV_STATE_MAP.get(value, value)
+
+        if self._key == "ALA":
+            return ALA_STATE_MAP.get(str(value).lower(), value)
+
+        return value
 
     @property
     def device_info(self):
